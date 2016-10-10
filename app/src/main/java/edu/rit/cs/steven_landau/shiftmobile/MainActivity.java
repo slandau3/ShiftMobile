@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
     /**
      * Wait for an object to be sent by the server.
      * An object being sent means means that the PC client is asking us to
@@ -71,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
     private void onReceiveFromServer() {
         while (true) {
             try {
+                Thread.sleep(100);   // No need to check from the server every nanosecond
                 Object o = input.readObject();
                 if (o instanceof SendCard) {
                     SendCard sc = (SendCard) o;
@@ -81,6 +83,8 @@ public class MainActivity extends AppCompatActivity {
             } catch (IOException e) {
                 e.printStackTrace();
                 break;   // Don't remember if this gets here when nothing has been received. If it does this catch statement should be empty
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }
