@@ -40,9 +40,13 @@ public class TextReceiver extends BroadcastReceiver{
 
                     assert smsMessage != null;
                     String contents = smsMessage.getMessageBody();
-                    String sender = smsMessage.getOriginatingAddress();
+                    String number = smsMessage.getOriginatingAddress();
 
-
+                    try {
+                        MainActivity.output.writeObject();
+                    } catch (Exception e) { // TODO
+                        e.printStackTrace();
+                    }
                 }
             }
         }
