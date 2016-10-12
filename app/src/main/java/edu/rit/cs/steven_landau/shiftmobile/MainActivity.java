@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.provider.ContactsContract;
@@ -52,16 +53,11 @@ public class MainActivity extends AppCompatActivity {
         Log.i(TAG, "getting permissions");
         getPermissions();
         Log.i(TAG, "have permissions");
-
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
         parseContacts();
         Log.i(TAG, "parsed contacts");
         connect();
     }
+
 
     /**
      * Connect to the server which will talk to both Clients
@@ -186,50 +182,68 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Goes through the phones contacts so that we can get a name from a number later on.
+     *
+     * Warning: This whole method is a mess. It works but it's a mess.
+     * I will attempt to clean it up at some point in the future.
+     * I need to read up on these queries and calls.
+     * Shield your eyes for now.
      */
     private void parseContacts() {
-        Log.i(TAG, "Setting up content resolver");
+        //Log.i(TAG, "Setting up content resolver");
         ContentResolver cr = getContentResolver();
-        Log.i(TAG, "setting up cursor");
+        //Log.i(TAG, "setting up cursor");
         Cursor cur = cr.query(ContactsContract.Contacts.CONTENT_URI, null, null, null, null);
-        Log.i(TAG, "about to check fi getcount > 0");
+        Cursor phones = cr.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, ContactsContract.CommonDataKinds.Phone.CONTACT_ID, null, null);
+
+        //Log.i(TAG, "about to check fi getcount > 0");
         if (cur.getCount() > 0) {   // Gotta make sure you have friends
-            Log.i(TAG, "about to go through cursor");
-            while(cur.moveToNext()) {
+            //Log.i(TAG, "about to go through cursor");
+            numToName.clear();
+            while(cur.moveToNext() && phones.moveToNext()) {
                 Log.i(TAG, "about to get the id");
                 String id = cur.getString(cur.getColumnIndex(ContactsContract.Contacts._ID));
                 Log.i(TAG, "The id is " + id);
                 Log.i(TAG, "about to get the name");
-                String name = cur.getString(cur.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
-                Log.i(TAG, "about to get the number, the name is " + name);
-                //String number = cur.getString(cur.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)); // Keep an eye on this. I heard it's a bit more complicated
-                Cursor phones = cr.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, ContactsContract.CommonDataKinds.Phone.CONTACT_ID, null, null);
+                //String name = cur.getString(cur.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+
+                //Log.i(TAG, "about to get the number, the name is " + name);
                 String number = null;
-                numToName.clear();
-                while (phones.moveToNext()) {
+
+
                     int type = phones.getInt(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE));
                     if (type == ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE) {
                         number = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
-                        Log.i(TAG, "191: " + number);
+                        Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number));
+                        Cursor cursor = cr.query(uri, new String[]{ContactsContract.PhoneLookup.DISPLAY_NAME}, null, null, null);
+                        Log.i(TAG, "created a new cursor");
+                        String name = null;
+                        if(cursor.moveToFirst()) {
+                            name = cursor.getString(cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME));
+                        }
+                        Log.i(TAG, "got the name");
+
                         String realNum = "";
                         for (int i = 0; i < number.length(); i++) {
                             if (Character.isDigit(number.charAt(i))) {
                                 realNum += number.charAt(i);     // Get the number into a form that can be used by our program (without the (...) ).
-
                             }
                         }
-                        Log.i(TAG, realNum);
+                        //Log.i(TAG, "The name is " + name + " the phone number is " + realNum);
                         numToName.put(realNum, name);
+                        cursor.close();
+                        Log.i(TAG, "closed cursor");
                     }
-                }
 
 
-                phones.close();
+
 
             }
 
         }
+        phones.close();
+        Log.i(TAG, "closed phones");
         cur.close();
+        Log.i(TAG, "closed cur");
     }
 
     /**
