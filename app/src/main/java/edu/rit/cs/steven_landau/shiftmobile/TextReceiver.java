@@ -41,21 +41,20 @@ public class TextReceiver extends BroadcastReceiver{
                     assert smsMessage != null;
                     String contents = smsMessage.getMessageBody();
                     String number = smsMessage.getOriginatingAddress();
-
+                    String name = MainActivity.getName(number);
+                    Log.i(MainActivity.TAG, "the number is : " + number + " the name is : " + name);
                     try {
-                        MainActivity.output.writeObject();
+                        if (!name.equals("NF")) {
+                            Log.i(MainActivity.TAG, contents + "   " + number + "  " + name);
+                            MainActivity.output.writeObject(new SendCard(contents, number, name));
+                            MainActivity.output.flush();
+                            Log.i(MainActivity.TAG, "written");
+                        }  // Do nothing right now if the person is not in our contacts
                     } catch (Exception e) { // TODO
-                        e.printStackTrace();
+                        Log.i(MainActivity.TAG, e.getMessage()); // could have lost connection
                     }
                 }
             }
         }
-    }
-
-
-    public void sendMessage(String number, String msg) throws InterruptedException {
-
-        SmsManager sms = SmsManager.getDefault();
-        sms.sendTextMessage(number, null, msg, null, null);
     }
 }
