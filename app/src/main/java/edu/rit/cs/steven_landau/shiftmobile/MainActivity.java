@@ -256,8 +256,10 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 while (true) {
                     try {
+                        parseContacts(); // TODO: make it send contactCards to server.
+                        makeRetrievedContacts();
                         Thread.sleep(600000);
-                        parseContacts();
+
                     } catch (InterruptedException e) {
                         //e.printStackTrace(); Application closed.
                         break;
@@ -265,6 +267,23 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }).start();
+    }
+
+    public void makeRetrievedContacts() {
+        RetrievedContacts rc = new RetrievedContacts();
+        for (String num : numToName.keySet()) {
+            rc.addContactCard(new ContactCard(numToName.get(num), num));
+        }
+        sendToServer(rc);
+        rc.reset();
+    }
+
+    public static void sendToServer(Object o) {
+        try {
+            output.writeObject(o);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
