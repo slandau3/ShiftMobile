@@ -29,6 +29,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class MainActivity extends AppCompatActivity {
@@ -38,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
     public static ObjectOutputStream output;
     public static HashMap<String, String> numToName = new HashMap<>();
     public static final String TAG = "SL";
+    private static final String IP = "";
     private CheckBox cb;
 
     @Override
@@ -55,7 +57,12 @@ public class MainActivity extends AppCompatActivity {
         Log.i(TAG, "have permissions");
         parseContacts();
         Log.i(TAG, "parsed contacts");
-        connect();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                connect();
+            }
+        }).start();
     }
 
 
@@ -63,51 +70,48 @@ public class MainActivity extends AppCompatActivity {
      * Connect to the server which will talk to both Clients
      */
     private void connect() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Log.i(TAG, "about to connect to host");
+        try {
+            Log.i(TAG, "about to connect to host");
 
-                    server = new Socket("", 8012);
-                    Log.i(TAG, "Connected to host. About to open the output stream");
-                    output = new ObjectOutputStream(server.getOutputStream());
-                    output.writeObject(new Mobile());   // Let the server know we are a mobile device
-                    output.flush();
-                    Log.i(TAG, "opened the output stream. About to open the input stream");
-                    input = new ObjectInputStream(server.getInputStream());
-                    Log.i(TAG, "opened the input stream about to await server response for the rest of time");
-                    parseContacts();
-                    pingContacts();
-                    onReceiveFromServer();
-                } catch (UnknownHostException e) {
-                    e.printStackTrace();
-                    Log.i(TAG, e.getMessage());
-                } catch (IOException e) {
-                    Log.i(TAG, e.getMessage());
-                } finally {
-                    try {
-                        Log.i(TAG, "closing streams");
-                        output.close();
-                        input.close();
-                        server.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } finally {
-                        Log.i(TAG, "retrying connection");
-                        while (true) {
-                          try {
-                              Thread.sleep(10000);
-                          } catch (InterruptedException e) {
-                              e.printStackTrace();
-                          }
-                          connect(); // Keep trying to connect to the server, every 10 seconds.
-                          // This will not affect the app shutting down in anyway. Upon shutdown onDestroy is called and this method is stopped.
-                      }
-                    }
-                }
+            server = new Socket(IP, 8012);
+            Log.i(TAG, "Connected to host. About to open the output stream");
+            output = new ObjectOutputStream(server.getOutputStream());
+            output.writeObject(new Mobile());   // Let the server know we are a mobile device
+            output.flush();
+            Log.i(TAG, "opened the output stream. About to open the input stream");
+            input = new ObjectInputStream(server.getInputStream());
+            Log.i(TAG, "opened the input stream about to await server response for the rest of time");
+            parseContacts();
+            Log.i(TAG, "finished parsing contacts");
+            pingContacts();
+            onReceiveFromServer();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            Log.i(TAG, e.getMessage());
+        } catch (IOException e) {
+            Log.i(TAG, e.getMessage());
+        } finally {
+            try {
+                Log.i(TAG, "closing streams");
+                output.close();
+                input.close();
+                server.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                Log.i(TAG, "retrying connection");
+                while (true) {
+                  try {
+                      Thread.sleep(10000);
+                  } catch (InterruptedException e) {
+                      e.printStackTrace();
+                  }
+                  connect(); // Keep trying to connect to the server, every 10 seconds.
+                  // This will not affect the app shutting down in anyway. Upon shutdown onDestroy is called and this method is stopped.
+              }
             }
-        }).start();
+        }
+
     }
 
 
@@ -157,6 +161,9 @@ public class MainActivity extends AppCompatActivity {
      * All permissions are necessary in order to function properly.
      */
     private void getPermissions() {   // TODO: Need to make it so the app shuts down if the user chooses not disallow any of these privileges in the future.
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, 1);
+        }
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.RECEIVE_SMS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -173,9 +180,7 @@ public class MainActivity extends AppCompatActivity {
                 PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, 1);
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, 1);
-        }
+
 
     }
 
@@ -256,10 +261,9 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 while (true) {
                     try {
-                        parseContacts(); // TODO: make it send contactCards to server.
                         makeRetrievedContacts();
                         Thread.sleep(600000);
-
+                        parseContacts();
                     } catch (InterruptedException e) {
                         //e.printStackTrace(); Application closed.
                         break;
@@ -270,12 +274,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void makeRetrievedContacts() {
-        RetrievedContacts rc = new RetrievedContacts();
+        ArrayList<ContactCard> cards = new ArrayList<>();
         for (String num : numToName.keySet()) {
-            rc.addContactCard(new ContactCard(numToName.get(num), num));
+            cards.add(new ContactCard(numToName.get(num), num));
         }
-        sendToServer(rc);
-        rc.reset();
+        Log.i(TAG, String.valueOf(cards));
+        //sendToServer(rc);
+        try {
+            output.reset();
+            output.writeObject(new RetrievedContacts(cards));
+            output.flush();
+        } catch (IOException e) {
+            Log.i(TAG, "uh oh");
+            e.printStackTrace();
+        }
+
     }
 
     public static void sendToServer(Object o) {

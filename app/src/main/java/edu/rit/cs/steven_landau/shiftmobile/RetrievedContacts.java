@@ -14,22 +14,20 @@ import java.util.ArrayList;
  * with anyone. The phone will parse it's contacts and send this class
  * which contains an arraylist full of Contact cards.
  */
-public class RetrievedContacts extends ArrayList<ContactCard> implements Serializable {
+public class RetrievedContacts implements Serializable {
 
-    private static ArrayList<ContactCard> cc;
+    public  ArrayList<ContactCard> cc;
 
-    public RetrievedContacts() {
-        cc = new ArrayList<>();
+    public RetrievedContacts(ArrayList<ContactCard> cards) {
+        this.cc = cards;
     }
 
     public void reset() {
-        cc.clear();
+        this.cc.clear();
     }
 
     public void addContactCard(ContactCard cCard) {
-        cc.add(cCard);
+        this.cc.add(cCard);
     }
-    public ArrayList<ContactCard> getCC() {
-        return cc;
-    }
+
 }
